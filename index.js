@@ -16,9 +16,24 @@ function getSourceCodeScriptURL() {
   _sourceCodeScriptURL = sourceCode.scriptURL
   return _sourceCodeScriptURL
 }
+
+function getPathBeforePackage(url, packageName = 'RNPackage') {
+  // 先去掉 file:// 前缀
+  let cleanUrl = url.replace(/^file:\/\//, '');
+  // 找到 Documents/ 的位置
+  const documentsIndex = cleanUrl.indexOf('/Documents');
+  if (documentsIndex !== -1) {
+    return cleanUrl.substring(0, documentsIndex + '/Documents'.length);
+  }
+  // 如果没有找到 Documents/，则使用原来的逻辑
+  const index = cleanUrl.indexOf(`/${packageName}`);
+  return index !== -1 ? cleanUrl.substring(0, index) : '';
+}
+
 const defaultMainBundePath = '' //Smartassets.DefaultMainBundlePath;
 var _ = require('lodash')
 var SmartAssets = {
+  
   initSmartAssets() {
     var initialize = _.once(this.initSmartAssetsInner)
     initialize()
@@ -26,6 +41,15 @@ var SmartAssets = {
   initSmartAssetsInner() {
     let drawablePathInfos = []
     let drawablePathInfosFromPlatform = []
+    // 拼接bundlePath
+    if (__DEV__) {
+    } else if (Platform.OS === "android") {
+      const codeUrl = getSourceCodeScriptURL();
+      const p0 = codeUrl.split("/assets/")[0];
+      bundlePath = "file://" + p0 + "/res/";
+    } else if (Platform.OS === "ios") {
+    }
+    
     Smartassets.travelDrawable(getSourceCodeScriptURL(), (retArray) => {
       drawablePathInfos = drawablePathInfos.concat(retArray)
     })
@@ -36,6 +60,7 @@ var SmartAssets = {
     AssetSourceResolver.prototype.defaultAsset = _.wrap(
       AssetSourceResolver.prototype.defaultAsset,
       function (func, ...args) {
+
         if (this.isLoadedFromServer()) {
           return this.assetServerURL()
         }
@@ -75,7 +100,7 @@ var SmartAssets = {
           } else {
             return this.resourceIdentifierWithoutScale()
           }
-        } else {
+        } else  {
           if (bundlePath != null) {
             this.jsbundleUrl = bundlePath
           }
@@ -94,6 +119,15 @@ var SmartAssets = {
         }
       }
     )
+  },
+
+  setAssetsBundlePath(rn_module,folderName,platformName){
+    if(Platform.OS == 'ios') {
+      const codeUrl = getSourceCodeScriptURL();
+      const pathPrefix = getPathBeforePackage(codeUrl);
+      bundlePath = pathPrefix + '/'+ folderName +'/'+ rn_module + '/';
+      iOSRelateMainBundlePath = pathPrefix + '/'+ folderName + '/' + platformName + '/';
+    }
   },
   setBundlePath(bundlePathNew) {
     if (!bundlePath) {
